@@ -1,5 +1,5 @@
 // 잔잔 오프라인 캐시. 앱 파일을 고치면 VERSION을 올린다.
-const VERSION = 'janlog-v22';
+const VERSION = 'janlog-v23';
 const FONT_CACHE = 'janlog-fonts';
 const FILES = [
   './',
@@ -16,7 +16,7 @@ const FILES = [
 const FONT_HOSTS = ['fonts.googleapis.com', 'fonts.gstatic.com', 'cdn.jsdelivr.net', 'tessdata.projectnaptha.com'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -46,7 +46,7 @@ self.addEventListener('fetch', e => {
 
   // 앱 파일: 네트워크 우선, 안 되면 캐시 (오프라인에서도 열리게)
   e.respondWith(
-    fetch(e.request)
+    fetch(fresh(e.request))
       .then(res => {
         const copy = res.clone();
         caches.open(VERSION).then(c => c.put(e.request, copy));
@@ -55,3 +55,8 @@ self.addEventListener('fetch', e => {
       .catch(() => caches.match(e.request).then(r => r || caches.match('index.html')))
   );
 });
+
+// 앱 파일은 브라우저 보관본(GitHub는 10분 보관)을 건너뛰고 늘 새로 확인한다
+function fresh(req) {
+  return req.mode === 'navigate' ? new Request(req.url, { cache: 'no-cache', credentials: 'same-origin' }) : new Request(req, { cache: 'no-cache' });
+}
