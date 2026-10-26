@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>잔잔</title>
+<meta name="theme-color" content="#eff1ec" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#16171a" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="잔잔">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="skins.css">
+<script>
+/* 글꼴: 화면이 그려지기 전에 고른 글꼴을 적용 */
+window.JANLOG_FONTS = {
+  suit:   { name: 'SUIT', family: 'SUIT Variable', note: '깔끔한 고딕', css: 'https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css' },
+  plex:   { name: 'IBM Plex Sans KR', family: 'IBM Plex Sans KR', note: '단정하고 차분한 고딕', css: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap' },
+  gowun:  { name: '고운돋움', family: 'Gowun Dodum', note: '부드럽고 둥근 글씨', css: 'https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap' },
+  gaegu:  { name: '개구', family: 'Gaegu', note: '손글씨 느낌', css: 'https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap' },
+  system: { name: '시스템 글꼴', note: '폰에 설정된 기본 글꼴', css: '' }
+};
+window.applyFont = function (key) {
+  var f = window.JANLOG_FONTS[key] ? key : 'suit';
+  document.documentElement.setAttribute('data-font', f);
+  var old = document.getElementById('font-css');
+  var css = window.JANLOG_FONTS[f].css;
+  if (old && old.getAttribute('href') === css) return f;
+  if (old) old.remove();
+  if (css) {
+    var l = document.createElement('link');
+    l.id = 'font-css'; l.rel = 'stylesheet'; l.href = css;
+    document.head.appendChild(l);
+  }
+  return f;
+};
+(function () { var k = null; try { k = localStorage.getItem('janlog.font'); } catch (e) {} window.applyFont(k || 'plex'); })();
+
+/* 화면 스타일 */
+window.JANLOG_SKINS = {
+  pop:     { name: '팝 갤러리', note: '큰 사진에 굵은 선과 날짜 스티커, 향미별 색', css: '' },
+  basic:   { name: '기본', note: '깔끔한 카드 목록', css: '' },
+  label:   { name: '원두 라벨', note: '기록 하나하나가 원두 봉투 라벨처럼', css: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap' },
+  note:    { name: '커피 노트북', note: '줄노트에 사진을 붙인 다이어리처럼', css: 'https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&display=swap' },
+  gallery: { name: '재팬디 갤러리', note: '사진을 크게, 원목색 선과 넉넉한 여백', css: 'https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&display=swap' }
+};
+window.applySkin = function (key) {
+  var s = window.JANLOG_SKINS[key] ? key : 'basic';
+  document.documentElement.setAttribute('data-skin', s);
+  var css = window.JANLOG_SKINS[s].css;
+  if (css && !document.querySelector('link[data-skin-css="' + s + '"]')) {
+    var l = document.createElement('link');
+    l.rel = 'stylesheet'; l.href = css; l.setAttribute('data-skin-css', s);
+    document.head.appendChild(l);
+  }
+  document.dispatchEvent(new Event('janlog:rerender'));
+  return s;
+};
+(function () { var k = null; try { k = localStorage.getItem('janlog.skin'); } catch (e) {} window.applySkin(k || 'pop'); })();
+
+/* 홈 보기 방식 */
+window.JANLOG_LAYOUTS = {
+  grid2:   { name: '사진 2열', note: '같은 크기 세로 사진(4:5)으로 두 줄씩' },
+  grid3:   { name: '사진 3열', note: '정사각 사진을 촘촘하게, 인스타 격자처럼' },
+  diary:   { name: '일기형', note: '날짜 기둥과 세로선으로 이어지는 기록장' },
+  summary: { name: '이달의 요약', note: '달마다 방문·향미 요약 + 한 줄 목록' }
+};
+window.applyLayout = function (key) {
+  var s = window.JANLOG_LAYOUTS[key] ? key : 'grid2';
+  document.documentElement.setAttribute('data-layout', s);
+  document.dispatchEvent(new Event('janlog:rerender'));
+  return s;
+};
+(function () { var k = null; try { k = localStorage.getItem('janlog.layout'); } catch (e) {} window.applyLayout(k || 'diary'); })();
+</script>
+
+</head>
+<body>
+<div id="app">
+  <!-- 홈 -->
+  <section id="view-home" class="view">
+    <header class="top">
+      <div class="top-inner">
+        <h1 class="brand">잔잔</h1>
+        <button class="icon-btn" id="btn-settings" aria-label="설정과 백업">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/></svg>
+        </button>
+      </div>
+      <div class="search-row">
+        <input id="q" type="search" placeholder="카페, 원두, 향미로 찾기" autocomplete="off">
+      </div>
+      <nav class="tabs" role="tablist">
+        <button class="tab is-on" data-tab="visits" role="tab"><span class="tab-lbl">방문</span><sup class="tab-n" data-n="visits"></sup></button>
+        <button class="tab" data-tab="cal" role="tab"><span class="tab-lbl">달력</span><sup class="tab-n" data-n="cal"></sup></button>
+        <button class="tab" data-tab="wish" role="tab"><span class="tab-lbl">가볼 곳</span><sup class="tab-n" data-n="wish"></sup></button>
+        <button class="tab" data-tab="beans" role="tab"><span class="tab-lbl">원두 노트</span><sup class="tab-n" data-n="beans"></sup></button>
+        <button class="tab" data-tab="places" role="tab"><span class="tab-lbl">카페별</span><sup class="tab-n" data-n="places"></sup></button>
+      </nav>
+    </header>
+    <main class="wrap" id="home-body"></main>
+    <button class="fab" id="btn-new" aria-label="기록하기">
+      <svg class="fab-plus" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <svg class="fab-cup" viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">
+        <path d="M9 17h18v6a9 9 0 0 1-18 0z" fill="#fff" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        <path d="M27 19h2.5a3.5 3.5 0 0 1 0 7H26.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M7 33h22" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        <path d="M14 7.5c-1.6 2 1.6 3.4 0 5.6M19.5 6c-1.6 2.2 1.6 3.8 0 6.4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="31" cy="9" r="6" fill="currentColor"/>
+        <path d="M31 6.2v5.6M28.2 9h5.6" stroke="var(--fab-bg, #ffd23f)" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <svg class="fab-pin" viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">
+        <path d="M18 33s-9-8.4-9-15a9 9 0 0 1 18 0c0 6.6-9 15-9 15z" fill="#fff" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/>
+        <circle cx="18" cy="18" r="3.2" fill="currentColor"/>
+        <circle cx="31" cy="9" r="6" fill="currentColor"/>
+        <path d="M31 6.2v5.6M28.2 9h5.6" stroke="var(--fab-bg, #ffd23f)" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <span class="fab-lbl">기록하기</span>
+    </button>
+  </section>
+
+  <!-- 상세 -->
+  <section id="view-detail" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="icon-btn" data-back aria-label="뒤로">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="top-title" id="detail-title"></span>
+        <button class="text-btn" id="btn-edit">수정</button>
+      </div>
+    </header>
+    <main class="wrap" id="detail-body"></main>
+  </section>
+
+  <!-- 작성 -->
+  <section id="view-edit" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="text-btn muted" id="btn-cancel">취소</button>
+        <span class="top-title" id="edit-title">새 기록</span>
+        <button class="text-btn strong" id="btn-save">저장</button>
+      </div>
+    </header>
+    <main class="wrap">
+      <form id="form" autocomplete="off" novalidate>
+        <fieldset class="block">
+          <div class="row2">
+            <label class="field">
+              <span class="lbl">날짜</span>
+              <input type="date" id="f-date" required>
+            </label>
+            <div class="field">
+              <span class="lbl">종류</span>
+              <div class="seg" id="f-type">
+                <button type="button" data-v="카페" class="is-on">카페</button>
+                <button type="button" data-v="베이커리">베이커리</button>
+              </div>
+            </div>
+          </div>
+          <label class="field">
+            <span class="lbl">어디였나요</span>
+            <input type="text" id="f-place" list="place-list" placeholder="카페 이름" required>
+            <datalist id="place-list"></datalist>
+          </label>
+          <label class="field">
+            <span class="lbl">위치 메모 <em>선택</em></span>
+            <input type="text" id="f-area" placeholder="예: 광안리 해변 쪽 골목">
+          </label>
+        </fieldset>
+
+        <fieldset class="block">
+          <div class="block-head">
+            <h2>사진</h2>
+            <span class="hint">안내지, 메뉴, 공간 사진</span>
+          </div>
+          <div class="photo-grid" id="f-photos"></div>
+          <div class="photo-add">
+            <label class="ghost-btn">
+              <input type="file" id="f-photo-input" accept="image/*" multiple hidden>
+              사진 추가
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset class="block">
+          <div class="block-head">
+            <h2>분위기</h2>
+          </div>
+          <div class="scales" id="f-mood-scales"></div>
+          <div class="field">
+            <span class="lbl">인테리어</span>
+            <div class="chips" id="f-mood-interior"></div>
+          </div>
+          <div class="field">
+            <span class="lbl">좋았던 점</span>
+            <div class="chips" id="f-mood-good"></div>
+          </div>
+          <label class="field">
+            <span class="lbl">공간 메모 <em>선택</em></span>
+            <textarea id="f-mood" rows="3" placeholder="조명, 음악, 자리, 붐빔 정도…"></textarea>
+          </label>
+        </fieldset>
+
+        <fieldset class="block">
+          <div class="block-head">
+            <h2>먹고 마신 것</h2>
+          </div>
+          <p class="hint" id="items-hint">무엇을 먹고 마셨나요? 고르면 적는 칸이 열려요.</p>
+          <div id="f-items" class="items"></div>
+          <div class="add-row is-start">
+            <button type="button" class="add-tile" data-add="filter"><b>필터커피</b><span>원두·향미까지</span></button>
+            <button type="button" class="add-tile" data-add="espresso"><b>에스프레소 음료</b><span>라떼, 플랫화이트…</span></button>
+            <button type="button" class="add-tile" data-add="drink"><b>다른 음료</b><span>에이드, 티…</span></button>
+            <button type="button" class="add-tile" data-add="bakery"><b>빵·디저트</b><span>스콘, 케이크…</span></button>
+          </div>
+        </fieldset>
+
+        <fieldset class="block">
+          <label class="field">
+            <span class="lbl">한 줄 정리 <em>선택</em></span>
+            <textarea id="f-memo" rows="2" placeholder="오늘 이 카페는…"></textarea>
+          </label>
+          <div class="field">
+            <span class="lbl">다시 갈래요?</span>
+            <div class="seg" id="f-again">
+              <button type="button" data-v="꼭">꼭</button>
+              <button type="button" data-v="가끔">가끔</button>
+              <button type="button" data-v="글쎄">글쎄</button>
+            </div>
+          </div>
+        </fieldset>
+
+        <div class="danger-zone" id="delete-zone" hidden>
+          <button type="button" class="danger-btn" id="btn-delete">이 기록 삭제</button>
+          <div class="confirm" id="delete-confirm" hidden>
+            <p>사진까지 모두 지워져요. 되돌릴 수 없어요.</p>
+            <div class="confirm-row">
+              <button type="button" class="ghost-btn" id="btn-delete-no">그대로 두기</button>
+              <button type="button" class="danger-btn solid" id="btn-delete-yes">삭제</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </main>
+  </section>
+
+  <!-- 설정 -->
+  <section id="view-settings" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="icon-btn" data-back aria-label="뒤로">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M15 5l-7 7 7 7" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="top-title">백업과 설정</span>
+        <span class="icon-btn" aria-hidden="true"></span>
+      </div>
+    </header>
+    <main class="wrap" id="settings-body">
+      <section class="block">
+        <div class="block-head"><h2>홈 보기 방식</h2></div>
+        <div class="font-list" id="layout-list"></div>
+      </section>
+      <section class="block">
+        <div class="block-head"><h2>화면 스타일</h2></div>
+        <div class="font-list" id="skin-list"></div>
+      </section>
+      <section class="block">
+        <div class="block-head"><h2>글꼴</h2><span class="hint">눌러서 바로 바뀌어요</span></div>
+        <div class="font-list" id="font-list"></div>
+      </section>
+      <section class="block">
+        <div class="block-head"><h2>저장 상태</h2></div>
+        <p class="stat" id="stat-line">불러오는 중…</p>
+        <p class="hint" id="persist-line"></p>
+        <p class="hint" id="last-backup-line"></p>
+      </section>
+      <section class="block">
+        <div class="block-head"><h2>백업</h2></div>
+        <p class="body-copy">기록과 사진은 이 폰 안에만 저장돼요. 폰을 바꾸거나 브라우저 데이터를 지우면 사라지니, 한 달에 한 번쯤 백업 파일을 만들어 구글 드라이브나 클라우드에 올려두세요.</p>
+        <div class="stack">
+          <button class="primary-btn" id="btn-export">백업 파일 만들기</button>
+          <label class="ghost-btn center">
+            <input type="file" id="import-input" accept=".json,application/json" hidden>
+            백업 파일에서 불러오기
+          </label>
+        </div>
+        <p class="hint" id="io-status" role="status"></p>
+      </section>
+      <section class="block">
+        <div class="block-head"><h2>홈 화면에 추가</h2></div>
+        <ul class="howto">
+          <li><b>아이폰</b> 사파리 아래 공유 버튼 → 홈 화면에 추가</li>
+          <li><b>안드로이드</b> 크롬 오른쪽 위 메뉴 → 홈 화면에 추가 또는 앱 설치</li>
+        </ul>
+        <p class="hint">홈 화면에서 열면 인터넷이 없어도 쓸 수 있고, 저장 공간도 더 안정적으로 유지돼요.</p>
+      </section>
+    </main>
+  </section>
+
+  <!-- 가볼 곳 -->
+  <section id="view-wish" class="view" hidden>
+    <header class="top plain">
+      <div class="top-inner">
+        <button class="text-btn muted" id="btn-wish-cancel">취소</button>
+        <span class="top-title" id="wish-title">가볼 곳 추가</span>
+        <button class="text-btn strong" id="btn-wish-save">저장</button>
+      </div>
+    </header>
+    <main class="wrap">
+      <form id="wish-form" autocomplete="off" novalidate>
+        <fieldset class="block">
+          <div class="block-head">
+            <h2>캡처·사진</h2>
+            <span class="hint">글자를 읽어 이름과 동네를 찾아줘요</span>
+          </div>
+          <div class="photo-grid" id="w-photos"></div>
+          <div class="photo-add">
+            <label class="ghost-btn">
+              <input type="file" id="w-photo-input" accept="image/*" multiple hidden>
+              캡처 넣기
+            </label>
+          </div>
+          <div class="ocr-box" id="ocr-box" hidden>
+            <p class="ocr-status" id="ocr-status" role="status"></p>
+            <div class="field">
+              <span class="lbl">누르면 여기에 들어가요</span>
+              <div class="seg" id="ocr-target">
+                <button type="button" data-v="name" class="is-on">가게 이름</button>
+                <button type="button" data-v="area">위치</button>
+                <button type="button" data-v="memo">메모</button>
+              </div>
+            </div>
+            <div class="chips" id="ocr-chips"></div>
+            <p class="hint">점선 테두리는 동네 이름 같아 보이는 단어예요.</p>
+          </div>
+        </fieldset>
+
+        <fieldset class="block">
+          <label class="field">
+            <span class="lbl">가게 이름</span>
+            <input type="text" id="w-name" placeholder="예: 우주강산" required>
+          </label>
+          <div class="row2">
+            <label class="field">
+              <span class="lbl">위치</span>
+              <input type="text" id="w-area" placeholder="예: 전포">
+            </label>
+            <div class="field">
+              <span class="lbl">종류</span>
+              <div class="seg" id="w-type">
+                <button type="button" data-v="카페" class="is-on">카페</button>
+                <button type="button" data-v="베이커리">베이커리</button>
+              </div>
+            </div>
+          </div>
+          <label class="field">
+            <span class="lbl">메모 <em>선택</em></span>
+            <textarea id="w-memo" rows="3" placeholder="시그니처 메뉴, 영업시간, 같이 갈 사람…"></textarea>
+          </label>
+          <div class="map-row" id="w-maps"></div>
+          <p class="hint" id="wish-visited-line" hidden></p>
+        </fieldset>
+
+        <div class="danger-zone" id="wish-delete-zone" hidden>
+          <button type="button" class="danger-btn" id="btn-wish-delete">가볼 곳에서 삭제</button>
+          <div class="confirm" id="wish-delete-confirm" hidden>
+            <p>캡처 사진까지 지워져요. 되돌릴 수 없어요.</p>
+            <div class="confirm-row">
+              <button type="button" class="ghost-btn" id="btn-wish-delete-no">그대로 두기</button>
+              <button type="button" class="danger-btn solid" id="btn-wish-delete-yes">삭제</button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </main>
+  </section>
+</div>
+
+<!-- 사진 크게 보기 -->
+<div class="lightbox" id="lightbox" hidden>
+  <button class="icon-btn lb-close" id="lb-close" aria-label="닫기">
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+  </button>
+  <img id="lb-img" alt="">
+  <p class="lb-cap" id="lb-cap"></p>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
