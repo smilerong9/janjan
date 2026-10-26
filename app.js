@@ -189,6 +189,18 @@ async function hydrateImages(root) {
 }
 
 /* 사진 줄이기: 긴 변 1600px JPEG */
+// 고른 사진을 바로 메모리로 복사한다. 안드로이드는 입력칸을 비우거나 시간이 지나면
+// 원본 파일을 다시 못 읽을 때가 있다 ("File could not be read! Code=0")
+async function takeFiles(input) {
+  const list = Array.from(input.files || []);
+  const out = [];
+  for (const f of list) {
+    try { out.push(new File([await f.arrayBuffer()], f.name || 'photo.jpg', { type: f.type || 'image/jpeg', lastModified: f.lastModified })); }
+    catch { out.push(f); }
+  }
+  input.value = '';
+  return out;
+}
 async function shrink(file) {
   const MAX = 1600;
   let src;
@@ -1052,8 +1064,7 @@ function renderPhotos() {
   hydrateImages(g);
 }
 $('#f-photo-input').addEventListener('change', async e => {
-  const files = Array.from(e.target.files || []);
-  e.target.value = '';
+  const files = await takeFiles(e.target);
   if (!files.length) return;
   toast(files.length > 1 ? `사진 ${files.length}장 준비 중…` : '사진 준비 중…');
   const d0 = state.draft;
@@ -1489,8 +1500,7 @@ $('#ocr-target').addEventListener('click', e => {
 });
 
 $('#w-photo-input').addEventListener('change', async e => {
-  const files = Array.from(e.target.files || []);
-  e.target.value = '';
+  const files = await takeFiles(e.target);
   if (!files.length || !state.wishDraft) return;
   const d = state.wishDraft;
   const added = [];
