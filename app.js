@@ -1541,6 +1541,23 @@ function ocrStatus(msg, busy) {
   el.textContent = msg;
   el.classList.toggle('busy', !!busy);
 }
+/* OCR에 넣기 전에 사진 크기 줄이기: 카메라 원본(1200만 화소 이상)을 그대로 넣으면 폰 메모리가 모자라 멈춘다 */
+async function ocrPrep(blob) {
+  try {
+    const src = await createImageBitmap(blob, { imageOrientation: 'from-image' });
+    const k = Math.min(1, 2400 / Math.max(src.width, src.height), Math.sqrt(3000000 / (src.width * src.height)));
+    if (k >= 1) { if (src.close) src.close(); return blob; }
+    const c = document.createElement('canvas');
+    c.width = Math.round(src.width * k); c.height = Math.round(src.height * k);
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+    if (src.close) src.close();
+    return (await new Promise(r => c.toBlob(r, 'image/jpeg', 0.92))) || blob;
+  } catch { return blob; }
+}
+// 실패하면 원인을 짧게 함께 보여준다 (다음에 고칠 때 단서)
+const ocrFailMsg = err => (navigator.onLine === false
+  ? '인터넷이 연결되지 않았어요. 글자 읽기는 처음 한 번 인터넷이 필요해요.'
+  : '글자를 읽지 못했어요. 한 번 더 눌러보거나 직접 입력해 주세요.') + (err && err.message ? ` (${String(err.message).slice(0, 60)})` : '');
 async function getOcrWorker() {
   if (!ocrWorkerP) {
     ocrWorkerP = (async () => {
@@ -1555,6 +1572,15 @@ async function getOcrWorker() {
         },
       });
     })();
+    ocrWorkerP = ocrWorkerP.then(w => {
+      // 인식 중 오류가 나면 작업자를 버리고 다음에 새로 만든다
+      const orig = w.recognize.bind(w);
+      w.recognize = async (img, ...rest) => {
+        try { return await orig(await ocrPrep(img), ...rest); }
+        catch (e) { ocrWorkerP = null; try { w.terminate(); } catch {} throw e; }
+      };
+      return w;
+    });
     ocrWorkerP.catch(() => { ocrWorkerP = null; });
   }
   return ocrWorkerP;
@@ -1588,7 +1614,7 @@ async function readTextInto(blob) {
     renderOcrChips();
     ocrStatus(toks.length ? '찾은 글자예요. 눌러서 채우세요.' : '글자를 찾지 못했어요. 직접 입력해 주세요.');
   } catch (err) {
-    ocrStatus('지금은 글자를 읽을 수 없어요. 인터넷 연결을 확인하거나 직접 입력해 주세요.');
+    ocrStatus(ocrFailMsg(err));
   }
 }
 
