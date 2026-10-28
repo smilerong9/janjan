@@ -1,5 +1,5 @@
 // 잔잔 오프라인 캐시. 앱 파일을 고치면 VERSION을 올린다.
-const VERSION = 'janlog-v23';
+const VERSION = 'janlog-v24';
 const FONT_CACHE = 'janlog-fonts';
 const FILES = [
   './',

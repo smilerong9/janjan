@@ -102,6 +102,10 @@ window.applyLayout = function (key) {
       </nav>
     </header>
     <main class="wrap" id="home-body"></main>
+    <div class="sel-bar" id="sel-bar" hidden>
+      <div class="sel-row" id="sel-main"><span id="sel-count">0개 선택</span><button type="button" class="text-btn muted" id="sel-cancel">취소</button><button type="button" class="danger-btn solid" id="sel-del" disabled>삭제</button></div>
+      <div class="sel-row" id="sel-ask" hidden><span id="sel-ask-msg">지울까요?</span><button type="button" class="text-btn muted" id="sel-no">그대로</button><button type="button" class="danger-btn solid" id="sel-yes">삭제</button></div>
+    </div>
     <button class="fab" id="btn-new" aria-label="기록하기">
       <svg class="fab-plus" viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <svg class="fab-cup" viewBox="0 0 40 40" width="34" height="34" aria-hidden="true">

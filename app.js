@@ -227,6 +227,7 @@ async function shrink(file) {
 
 /* ---------- 상태 ---------- */
 const state = {
+  sel: null,
   visits: [],
   wishes: [],
   wishDraft: null,
@@ -326,7 +327,7 @@ function cardHTML(v) {
   flv.slice(0, 3).forEach(f => tags.push(flavorPill(f)));
   if (v.again === '꼭') tags.push(`<span class="pill navy">또 갈래</span>`);
   if (v.sample) tags.push(`<span class="pill">예시</span>`);
-  return `<button class="card" data-open="${esc(v.id)}">
+  return `<button class="card" data-open="${esc(v.id)}" data-sid="v:${esc(v.id)}">
     ${cover ? `<img class="thumb" data-pid="${esc(cover.id)}" alt="">` : `<div class="thumb empty">☕</div>`}
     <div class="card-body">
       <div class="card-top"><span class="card-place">${esc(v.place)}</span><span class="card-date">${fmtDate(v.date)}</span></div>
@@ -342,7 +343,7 @@ function galleryHTML(v) {
   const flv = [];
   (v.items || []).forEach(it => (it.flavors || []).forEach(f => { if (!flv.includes(f)) flv.push(f); }));
   const [, m, d] = (v.date || '--').split('-');
-  return `<button class="gal-item" data-open="${esc(v.id)}">
+  return `<button class="gal-item" data-open="${esc(v.id)}" data-sid="v:${esc(v.id)}">
     <span class="gal-frame">
       ${cover ? `<img class="gal-img" data-pid="${esc(cover.id)}" alt="">` : `<span class="gal-img empty">${esc((v.place || '?').slice(0, 1))}</span>`}
       <span class="gal-badge" aria-hidden="true"><b>${Number(d) || ''}</b><small>${Number(m) ? Number(m) + '월' : ''}</small></span>
@@ -374,7 +375,7 @@ function diaryHTML(list) {
         <div class="dy-date"><b>${Number((ds || '').slice(8, 10)) || ''}</b><small>${weekday(ds)}</small></div>
         <div class="dy-entries">${dv.map(v => {
           const c = coverOf(v); const f = flavorsOf(v);
-          return `<button type="button" class="dy-entry" data-open="${esc(v.id)}">
+          return `<button type="button" class="dy-entry" data-open="${esc(v.id)}" data-sid="v:${esc(v.id)}">
             <span class="dy-text">
               <span class="dy-place">${esc(v.place)}${v.again === '꼭' ? '<span class="dy-again">또 갈래</span>' : ''}</span>
               <span class="dy-sub">${esc(itemSummary(v))}</span>
@@ -421,7 +422,7 @@ function summaryHTML(list) {
         <p class="msum-legend">${famSorted.map(([k, n]) => `<span><i class="fb-${k}"></i>${FAM_NAME[k]} ${n}</span>`).join('')}</p>
       </div>` : ''}
       ${fav && fav[1] > 1 ? `<p class="msum-line">자주 간 곳 <b>${esc(fav[0])}</b> ${fav[1]}번</p>` : ''}
-      <div class="msum-rows">${vs.map(v => `<button type="button" class="msum-row" data-open="${esc(v.id)}">
+      <div class="msum-rows">${vs.map(v => `<button type="button" class="msum-row" data-open="${esc(v.id)}" data-sid="v:${esc(v.id)}">
         <span class="msum-date">${fmtDate(v.date)}</span>
         <span class="msum-place">${esc(v.place)}</span>
         <span class="msum-menu">${esc(itemSummary(v))}</span>
@@ -565,9 +566,15 @@ function renderHome() {
   $$('.tab-n').forEach(s => { const n = counts[s.dataset.n]; s.textContent = n ? String(n) : ''; });
   const list = filtered();
   const body = $('#home-body');
-  body.innerHTML = state.tab === 'beans' ? renderBeans(list) : state.tab === 'places' ? renderPlaces(list) : state.tab === 'cal' ? renderCal(list) : state.tab === 'wish' ? renderWishes() : renderVisits(list);
+  const selectable = (state.tab === 'visits' && state.visits.length) || (state.tab === 'wish' && state.wishes.length);
+  if (!selectable) state.sel = null;
+  body.innerHTML = (selectable ? `<div class="sel-tools"><button type="button" class="mini-link sel-link" data-act="select">${state.sel ? '선택 끝' : '선택'}</button></div>` : '')
+    + (state.tab === 'beans' ? renderBeans(list) : state.tab === 'places' ? renderPlaces(list) : state.tab === 'cal' ? renderCal(list) : state.tab === 'wish' ? renderWishes() : renderVisits(list));
   hydrateImages(body);
-  $('#btn-new').hidden = false;
+  body.classList.toggle('selecting', !!state.sel);
+  if (state.sel) $$('[data-sid]', body).forEach(r => r.classList.toggle('is-sel', state.sel.has(r.dataset.sid)));
+  renderSelBar();
+  $('#btn-new').hidden = !!state.sel;
   const wishMode = state.tab === 'wish';
   $('#btn-new .fab-lbl').textContent = wishMode ? '가볼 곳 추가' : '기록하기';
   $('#btn-new').setAttribute('aria-label', wishMode ? '가볼 곳 추가' : '기록하기');
@@ -600,7 +607,7 @@ $('#home-body').addEventListener('click', e => {
   if (act?.dataset.act === 'new') return newVisit();
   if (act?.dataset.act === 'sample') return addSample();
 });
-$$('.tab').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; renderHome(); }));
+$$('.tab').forEach(b => b.addEventListener('click', () => { state.tab = b.dataset.tab; state.sel = null; renderHome(); }));
 $('#q').addEventListener('input', e => { state.q = e.target.value; renderHome(); });
 $('#btn-new').addEventListener('click', () => {
   if (state.tab === 'wish') { state.wishDraft = null; return go('wish'); }
@@ -1376,7 +1383,7 @@ const mapLinks = w => {
 function wishCardHTML(w) {
   const m = mapLinks(w);
   const sub = [w.area, w.memo].filter(Boolean).map(esc).join(' · ');
-  return `<div class="wish-row">
+  return `<div class="wish-row" data-sid="w:${esc(w.id)}">
     <button type="button" class="wish-main" data-wish-open="${esc(w.id)}">
       <span class="wish-name">${esc(w.name)}${w.type === '베이커리' ? '<span class="wish-kind">베이커리</span>' : ''}</span>
       ${sub ? `<span class="wish-sub">${sub}</span>` : ''}
@@ -1405,7 +1412,7 @@ function renderWishes() {
   html += todo.length ? `<div class="wish-list">${todo.map(wishCardHTML).join('')}</div>` : '<p class="cal-empty">다 가봤어요! 새로 가볼 곳을 추가해 보세요.</p>';
   if (done.length) {
     html += `<h2 class="month">다녀온 곳 ${done.length}</h2><div class="done-list">${done.map(w => `
-      <button type="button" class="place-row" ${w.visitedId && state.visits.some(v => v.id === w.visitedId) ? `data-open="${esc(w.visitedId)}"` : `data-wish-open="${esc(w.id)}"`}>
+      <button type="button" class="place-row" data-sid="w:${esc(w.id)}" ${w.visitedId && state.visits.some(v => v.id === w.visitedId) ? `data-open="${esc(w.visitedId)}"` : `data-wish-open="${esc(w.id)}"`}>
         <span class="place-name">${esc(w.name)}</span>
         <span class="place-type">${esc(w.area || '')}</span>
         <span class="place-count">${w.visitedAt ? fmtDate(w.visitedAt) + ' 방문' : '방문함'}</span>
@@ -1930,6 +1937,49 @@ $('#import-input').addEventListener('change', async e => {
   }
 })();
 
+/* ---------- 여러 개 골라서 지우기 ---------- */
+// 캡처 단계에서 먼저 받아서, 선택 중에는 기록이 열리지 않게 한다
+$('#home-body').addEventListener('click', e => {
+  if (e.target.closest('[data-act="select"]')) { e.stopPropagation(); state.sel = state.sel ? null : new Set(); return renderHome(); }
+  if (!state.sel) return;
+  const r = e.target.closest('[data-sid]');
+  if (!r) return;
+  e.stopPropagation(); e.preventDefault();
+  const id = r.dataset.sid;
+  if (state.sel.has(id)) state.sel.delete(id); else state.sel.add(id);
+  $$(`[data-sid="${id}"]`, $('#home-body')).forEach(x => x.classList.toggle('is-sel', state.sel.has(id)));
+  renderSelBar();
+}, true);
+function renderSelBar() {
+  const bar = $('#sel-bar'), n = state.sel ? state.sel.size : 0;
+  bar.hidden = !state.sel;
+  if (!state.sel) return;
+  $('#sel-count').textContent = n ? `${n}개 선택` : '지울 것을 눌러 고르세요';
+  $('#sel-del').disabled = !n;
+  $('#sel-main').hidden = false; $('#sel-ask').hidden = true;
+}
+$('#sel-cancel').addEventListener('click', () => { state.sel = null; renderHome(); });
+$('#sel-del').addEventListener('click', () => {
+  if (!state.sel || !state.sel.size) return;
+  $('#sel-ask-msg').textContent = `${state.sel.size}개를 지울까요? 사진까지 지워져요.`;
+  $('#sel-main').hidden = true; $('#sel-ask').hidden = false;
+});
+$('#sel-no').addEventListener('click', () => { $('#sel-main').hidden = false; $('#sel-ask').hidden = true; });
+$('#sel-yes').addEventListener('click', async () => {
+  const ids = [...(state.sel || [])];
+  for (const sid of ids) {
+    const [k, id] = [sid.slice(0, 1), sid.slice(2)];
+    const it = k === 'v' ? state.visits.find(x => x.id === id) : state.wishes.find(x => x.id === id);
+    if (!it) continue;
+    if (k === 'v') await store.deleteVisit(it); else await store.deleteWish(it);
+    (it.photos || []).forEach(p => dropURL(p.id));
+  }
+  await load();
+  state.sel = null;
+  renderHome();
+  toast(`${ids.length}개를 지웠어요`);
+});
+
 /* 앱 버전 표시 (설정 맨 아래). 업데이트가 들어왔는지 확인용 */
-const APP_VER = 'janlog-v23';
+const APP_VER = 'janlog-v24';
 (() => { const el = document.getElementById('app-ver'); if (el) el.textContent = `잔잔 버전 ${APP_VER.split('-').pop()}`; })();
